@@ -2,7 +2,7 @@ const router = require('express').Router();
 const User = require('../models/User');
 const Land = require('../models/Land');
 
-router.post('/', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const existingUsers = await User.countDocuments();
     if (existingUsers > 0) {
