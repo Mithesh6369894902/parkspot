@@ -1,0 +1,152 @@
+============================================
+  PARKSPOT - COMPLETE LIVE DEPLOYMENT GUIDE
+============================================
+
+WHAT YOU'RE BUILDING:
+A real-time parking land rental app that works from
+anywhere in the world, 24/7, even when your PC is off.
+
+ARCHITECTURE:
+  Phone (Flutter APK) → Cloud Server (Render.com) → Cloud Database (MongoDB Atlas)
+
+
+============================================
+STEP 1: MONGODB ATLAS (Free Cloud Database)
+============================================
+
+1. Open: https://www.mongodb.com/atlas
+2. Click "Try Free" → Create account
+3. Click "Build a Database"
+4. Select "M0 Free" (forever free)
+5. Cloud Provider: AWS | Region: Mumbai (ap-south-1)
+6. Click "Create"
+7. Database Access:
+   - Username: parkspot_user
+   - Password: ParkSpot123
+   - Click "Create User"
+8. Network Access:
+   - Click "Add Entry"
+   - IP: 0.0.0.0/0
+   - Click "Confirm"
+9. Click "Choose a connection method" → "Drivers"
+10. COPY the connection string
+
+The string looks like:
+mongodb+srv://parkspot_user:ParkSpot123@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority
+
+CHANGE the part after .net/ to:
+mongodb+srv://parkspot_user:ParkSpot123@cluster0.abc123.mongodb.net/parkspot?retryWrites=true&w=majority
+
+
+============================================
+STEP 2: GITHUB (Upload your code)
+============================================
+
+1. Open: https://github.com → Sign up
+2. Click "+" → "New repository"
+3. Name: parkspot
+4. Click "Create repository"
+5. Install GitHub Desktop: https://desktop.github.com
+6. File → Clone Repository → Enter your repo URL
+7. COPY all files from: C:\Users\MITHESH D\parkspot
+   into the cloned folder
+8. In GitHub Desktop: Commit all → Push origin
+
+
+============================================
+STEP 3: RENDER.COM (Cloud Server)
+============================================
+
+1. Open: https://render.com → Sign up with GitHub
+2. Click "New +" → "Web Service"
+3. Connect your "parkspot" GitHub repo
+4. Fill in:
+   - Name: parkspot-server
+   - Runtime: Node
+   - Region: Asia (Mumbai)
+   - Build Command:
+     cd server && npm install
+   - Start Command:
+     cd server && node src/server.js
+5. Add Environment Variables:
+   MONGODB_URI  = your MongoDB Atlas connection string
+   JWT_SECRET   = parkspot_live_secret_2026_key
+   JWT_EXPIRE   = 7d
+   RAZORPAY_KEY_ID     = (from razorpay.com)
+   RAZORPAY_KEY_SECRET = (from razorpay.com)
+   CLIENT_URL   = https://parkspot-server.onrender.com
+   NODE_ENV     = production
+6. Click "Create Web Service"
+7. WAIT 5-10 minutes
+
+YOUR LIVE URL: https://parkspot-server.onrender.com
+
+
+============================================
+STEP 4: SEED DEMO DATA
+============================================
+
+Open terminal:
+  cd C:\Users\MITHESH D\parkspot\server
+  set MONGODB_URI=your_atlas_string_here
+  node src/seed.js
+
+This creates demo users and parking lands.
+
+
+============================================
+STEP 5: RAZORPAY (Payment Gateway)
+============================================
+
+1. Open: https://dashboard.razorpay.com
+2. Sign up → Complete basic KYC
+3. Settings → API Keys → Generate Key
+4. Copy Key ID and Key Secret
+5. Add to Render environment variables
+6. For testing: use "Test Mode" keys (rzp_test_xxx)
+
+
+============================================
+STEP 6: UPDATE FLUTTER APP
+============================================
+
+Edit: C:\Users\MITHESH D\parkspot_mobile\lib\config\api_config.dart
+
+Change to:
+  static const String baseUrl = 'https://parkspot-server.onrender.com/api';
+  static const String razorpayKeyId = 'rzp_test_yourkey';
+
+
+============================================
+STEP 7: BUILD AND INSTALL APK
+============================================
+
+  cd C:\Users\MITHESH D\parkspot_mobile
+  flutter build apk --release
+
+APK location:
+  build\app\outputs\flutter-apk\app-release.apk
+
+Copy to phone → Install → DONE!
+
+
+============================================
+DEMO ACCOUNTS (run seed.js first)
+============================================
+
+Admin:    admin@parkspot.in  / admin123
+Owner:    rajesh@parkspot.in / owner123
+Customer: amit@parkspot.in   / customer123
+
+
+============================================
+YOUR LIVE APP
+============================================
+
+Flutter APK:  Install on phone
+Backend API:  https://parkspot-server.onrender.com/api
+Database:     MongoDB Atlas (cloud)
+Payments:     Razorpay (UPI, Cards, Net Banking)
+
+Works from ANYWHERE in the world, 24/7.
+No localhost. No your PC needed. 100% cloud.

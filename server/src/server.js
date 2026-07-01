@@ -1,0 +1,33 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const connectDB = require('./config/db');
+const corsOptions = require('./config/cors');
+
+const app = express();
+
+connectDB();
+
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/lands', require('./routes/land'));
+app.use('/api/bookings', require('./routes/booking'));
+app.use('/api/payments', require('./routes/payment'));
+app.use('/api/reviews', require('./routes/review'));
+app.use('/api/admin', require('./routes/admin'));
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Serve React frontend in production
+const clientBuild = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientBuild));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientBuild, 'index.html'));
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => console.log(`ParkSpot server running on port ${PORT}`));
