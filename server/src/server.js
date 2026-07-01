@@ -18,6 +18,7 @@ app.use('/api/bookings', require('./routes/booking'));
 app.use('/api/payments', require('./routes/payment'));
 app.use('/api/reviews', require('./routes/review'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/seed', require('./routes/seed'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
