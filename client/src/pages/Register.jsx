@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Logo from '../components/common/Logo';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', role: 'customer' });
@@ -29,9 +30,12 @@ export default function Register() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-center mb-2">Create Account</h1>
-          <p className="text-slate-500 text-center mb-6">Join ParkSpot today</p>
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10">
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" showTagline={true} />
+          </div>
+          <h1 className="text-2xl font-black text-center mb-1 text-slate-900 font-heading">Create Account</h1>
+          <p className="text-slate-500 text-sm text-center mb-8">Join the ParkSpot network in seconds</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -133,3 +137,4 @@ export default function Register() {
     </div>
   );
 }
+

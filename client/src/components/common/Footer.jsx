@@ -1,18 +1,17 @@
-import { Car } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Logo from './Logo';
 
 export default function Footer() {
   return (
-    <footer className="bg-slate-900 text-slate-300">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+    <footer className="bg-slate-950 text-slate-300 border-t border-slate-800">
+      <div className="max-w-7xl mx-auto px-4 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div>
-            <Link to="/" className="flex items-center gap-2 text-white font-bold text-xl mb-3">
-              <Car className="w-6 h-6" />
-              ParkSpot
-            </Link>
-            <p className="text-sm text-slate-400">
-              Connect with land owners for temporary parking solutions for events, conferences, and gatherings.
+            <div className="mb-4">
+              <Logo size="md" variant="white" showTagline={true} />
+            </div>
+            <p className="text-sm text-slate-400 leading-relaxed max-w-sm">
+              India's premier real-time parking land rental ecosystem. Connecting drivers with verified open spaces for stress-free parking at events, markets, and venues.
             </p>
           </div>
           <div>
@@ -26,8 +25,13 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold mb-3">Contact</h3>
             <div className="space-y-2 text-sm text-slate-400">
-              <p>Email: support@parkspot.in</p>
-              <p>Phone: +91 98765 43210</p>
+              <p className="flex items-center gap-1.5">
+                <span>Email:</span>
+                <a href="mailto:mithesh1892@gmail.com" className="text-cyan-400 hover:text-cyan-300 font-medium transition">
+                  mithesh1892@gmail.com
+                </a>
+              </p>
+              <p>Founder & Lead: Mithesh D</p>
               <p>India</p>
             </div>
           </div>

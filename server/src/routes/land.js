@@ -1,8 +1,9 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { createLand, getLands, getLandById, updateLand, deleteLand, getMyLands, getAllLands, verifyLand } = require('../controllers/landController');
-const { protect, authorize } = require('../middleware/auth');
+const { createLand, getLands, getLandById, updateLand, deleteLand, getMyLands, getAllLands, verifyLand, submitVerificationDocs } = require('../controllers/landController');
+const { protect, authorize, optionalAuth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
+const { uploadPrivate } = require('../middleware/upload');
 const validate = require('../middleware/validation');
 
 router.post('/', protect, authorize('owner'), upload.array('images', 10), [
@@ -19,8 +20,9 @@ router.post('/', protect, authorize('owner'), upload.array('images', 10), [
 router.get('/', getLands);
 router.get('/my', protect, authorize('owner'), getMyLands);
 router.get('/admin/all', protect, authorize('admin'), getAllLands);
-router.get('/:id', getLandById);
+router.get('/:id', optionalAuth, getLandById);
 router.put('/:id', protect, authorize('owner'), upload.array('images', 10), updateLand);
+router.put('/:id/verify-docs', protect, authorize('owner'), uploadPrivate.fields([{ name: 'doc', maxCount: 1 }, { name: 'idProof', maxCount: 1 }, { name: 'livePhoto', maxCount: 1 }]), submitVerificationDocs);
 router.delete('/:id', protect, deleteLand);
 router.put('/:id/verify', protect, authorize('admin'), verifyLand);
 

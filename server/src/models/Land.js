@@ -30,6 +30,18 @@ const landSchema = new mongoose.Schema({
   availableDates: [{ start: Date, end: Date }],
   averageRating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
+  fakeReportCount: { type: Number, default: 0 },
+  verificationDetails: {
+    documentType: { type: String, enum: ['patta', 'tax_receipt', 'sale_deed', 'lease_agreement', 'utility_bill', 'other'], default: 'utility_bill' },
+    documentUrl: { type: String, default: '' },
+    ownerIdProofUrl: { type: String, default: '' },
+    livePhotoUrl: { type: String, default: '' },
+    livePhotoCoordinates: { type: [Number], default: [] },
+    verificationTier: { type: String, enum: ['unverified', 'doc_verified', 'physically_verified'], default: 'unverified' },
+    notes: { type: String, default: '' },
+    verifiedAt: { type: Date },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  },
 }, { timestamps: true });
 
 landSchema.index({ location: '2dsphere' });

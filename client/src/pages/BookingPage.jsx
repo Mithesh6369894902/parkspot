@@ -1,128 +1,104 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Calendar, Car, Bike, ArrowLeft, CreditCard } from 'lucide-react';
+import { Calendar, Car, Bike, ArrowLeft, CreditCard, MapPin, ShieldCheck, Navigation } from 'lucide-react';
 import api from '../services/api';
+import { getLivePosition, haversineKm } from '../utils/geo';
 import toast from 'react-hot-toast';
 
 export default function BookingPage() {
   const { landId } = useParams();
   const navigate = useNavigate();
   const [land, setLand] = useState(null);
-  const [form, setForm] = useState({
-    startDate: '',
-    endDate: '',
-    vehicleType: 'four_wheeler',
-    vehicleCount: 1,
-  });
+  const [dist, setDist] = useState(null);
+  const [form, setForm] = useState({ startDate: '', endDate: '', vehicleType: 'four_wheeler', vehicleCount: 1 });
   const [pricing, setPricing] = useState(null);
+  const [avail, setAvail] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [fetchingLand, setFetchingLand] = useState(true);
+  const [checking, setChecking] = useState(false);
+  const deb = useRef(null);
 
   useEffect(() => {
-    const fetchLand = async () => {
+    (async () => {
       try {
         const { data } = await api.get(`/lands/${landId}`);
         setLand(data.land);
-      } catch (err) {
+        try {
+          const pos = await getLivePosition();
+          const d = haversineKm([pos.coords.latitude, pos.coords.longitude], [data.land.location.coordinates[1], data.land.location.coordinates[0]]);
+          setDist(d);
+        } catch {}
+        // default: tomorrow 10am -> 2pm
+        const s = new Date(Date.now() + 24 * 3600 * 1000); s.setHours(10, 0, 0, 0);
+        const e = new Date(s.getTime() + 4 * 3600 * 1000);
+        const fmt = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setForm((f) => ({ ...f, startDate: fmt(s), endDate: fmt(e) }));
+      } catch {
         toast.error('Land not found');
         navigate('/explore');
-      } finally {
-        setFetchingLand(false);
       }
-    };
-    fetchLand();
+    })();
   }, [landId, navigate]);
 
-  const handleChange = (e) => {
-    const newForm = { ...form, [e.target.name]: e.target.value };
-    setForm(newForm);
-
-    // Calculate pricing when dates are set
-    if (newForm.startDate && newForm.endDate && land) {
-      calculatePricing(newForm);
-    }
-  };
-
-  const calculatePricing = async (formData) => {
+  const refreshQuote = async (fd = form) => {
+    if (!fd.startDate || !fd.endDate || !land) return;
     try {
-      const { data } = await api.post('/bookings/calculate', {
-        landId,
-        eventDate: { start: formData.startDate, end: formData.endDate },
-        vehicleType: formData.vehicleType,
-        vehicleCount: parseInt(formData.vehicleCount),
-      });
-      setPricing(data.pricing);
-    } catch (err) {
-      // Pricing calculation endpoint is optional - calculate locally
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      const hours = Math.ceil((end - start) / (1000 * 60 * 60));
-      if (hours > 0) {
-        const base = land.pricePerHour * hours * parseInt(formData.vehicleCount);
-        const vehicleMult = formData.vehicleType === 'two_wheeler' ? 0.5 : formData.vehicleType === 'mixed' ? 0.75 : 1;
-        setPricing({
-          basePrice: land.pricePerHour,
-          durationHours: hours,
-          finalPrice: Math.round(base * vehicleMult),
-          breakdown: { vehicleType: formData.vehicleType, vehicleMultiplier: vehicleMult },
-        });
-      }
+      setChecking(true);
+      const [{ data: av }, { data: pr }] = await Promise.all([
+        api.get('/bookings/availability', { params: { landId, startDate: new Date(fd.startDate).toISOString(), endDate: new Date(fd.endDate).toISOString(), vehicleType: fd.vehicleType, vehicleCount: fd.vehicleCount } }),
+        api.post('/bookings/calculate', { landId, startDate: new Date(fd.startDate).toISOString(), endDate: new Date(fd.endDate).toISOString(), vehicleType: fd.vehicleType, vehicleCount: fd.vehicleCount }),
+      ]);
+      setAvail(av);
+      setPricing(pr.finalPrice ? { finalPrice: pr.finalPrice, ...pr.pricing } : pr.pricing);
+    } catch (e) {
+      setAvail(null);
+    } finally {
+      setChecking(false);
     }
   };
+
+  useEffect(() => {
+    clearTimeout(deb.current);
+    deb.current = setTimeout(() => refreshQuote(), 600);
+    // eslint-disable-next-line
+  }, [form.startDate, form.endDate, form.vehicleType, form.vehicleCount, land]);
 
   const handleBook = async () => {
-    if (!form.startDate || !form.endDate) {
-      toast.error('Please select start and end dates');
-      return;
-    }
-
+    if (!form.startDate || !form.endDate) return toast.error('Pick dates');
+    if (avail && !avail.available) return toast.error(`Only ${avail.availableSpots} spots left for this slot`);
     setLoading(true);
     try {
       const { data } = await api.post('/bookings', {
-        landId,
-        eventDate: { start: form.startDate, end: form.endDate },
-        vehicleType: form.vehicleType,
-        vehicleCount: parseInt(form.vehicleCount),
+        landId, startDate: new Date(form.startDate).toISOString(), endDate: new Date(form.endDate).toISOString(),
+        vehicleType: form.vehicleType, vehicleCount: parseInt(form.vehicleCount),
       });
+      const bookingId = data.booking._id;
+      const { data: orderData } = await api.post('/payments/create-order', { bookingId });
 
-      // Create payment order
-      const { data: orderData } = await api.post('/payments/create-order', {
-        bookingId: data.booking._id,
-      });
+      // TEST MODE: mock Razorpay (no keys) -> auto-confirm without popup
+      if (orderData.isMockMode) {
+        await api.post('/payments/verify', { razorpayOrderId: orderData.order.id, razorpayPaymentId: `pay_mock_${Date.now()}`, razorpaySignature: 'mock' });
+        toast.success('Booked! (test mode, no real charge)');
+        return navigate(`/booking-confirmation/${bookingId}`);
+      }
 
-      // Initiate Razorpay payment
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
-        currency: orderData.order.currency,
-        name: 'ParkSpot',
-        description: `Parking at ${land.title}`,
-        order_id: orderData.order.id,
-        handler: async function (response) {
+      if (!window.Razorpay) {
+        const s = document.createElement('script');
+        s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        await new Promise((res, rej) => { s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+      }
+      const rzp = new window.Razorpay({
+        key: orderData.key, amount: orderData.order.amount, currency: 'INR',
+        name: 'ParkSpot', description: `Parking at ${land.title}`, order_id: orderData.order.id,
+        handler: async (r) => {
           try {
-            await api.post('/payments/verify', {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              paymentId: orderData.paymentId,
-            });
+            await api.post('/payments/verify', { razorpayOrderId: r.razorpay_order_id, razorpayPaymentId: r.razorpay_payment_id, razorpaySignature: r.razorpay_signature });
             toast.success('Payment successful!');
-            navigate(`/booking-confirmation/${data.booking._id}`);
-          } catch (err) {
-            toast.error('Payment verification failed. Contact support.');
-          }
-        },
-        prefill: {
-          contact: '',
-          email: '',
+            navigate(`/booking-confirmation/${bookingId}`);
+          } catch { toast.error('Verification failed. Contact support.'); }
         },
         theme: { color: '#2563eb' },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function () {
-        toast.error('Payment failed. Please try again.');
       });
+      rzp.on('payment.failed', () => toast.error('Payment failed'));
       rzp.open();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Booking failed');
@@ -131,135 +107,50 @@ export default function BookingPage() {
     }
   };
 
-  if (fetchingLand) return <div className="flex items-center justify-center h-[60vh]">Loading...</div>;
-  if (!land) return null;
-
-  const maxFourWheelers = land.fourWheelerSpots;
-  const maxTwoWheelers = land.twoWheelerSpots;
+  if (!land) return <div className="ps-loading">Loading live availability…</div>;
+  const max = form.vehicleType === 'two_wheeler' ? land.twoWheelerSpots : form.vehicleType === 'four_wheeler' ? land.fourWheelerSpots : land.totalSpots;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-600 hover:text-blue-600 mb-6">
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+      <button onClick={() => navigate(-1)} className="ps-back"><ArrowLeft className="w-4 h-4" /> Back</button>
+      <h1 className="text-2xl font-extrabold">Book {land.title}</h1>
+      <p className="text-slate-500 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> {land.location?.address}, {land.location?.city} {dist != null && <b>• {dist.toFixed(1)} km from you</b>}</p>
+      <a className="text-xs text-blue-600 flex items-center gap-1 mb-6" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${land.location.coordinates[1]},${land.location.coordinates[0]}`}><Navigation className="w-3 h-3" /> Get directions</a>
 
-      <h1 className="text-2xl font-bold mb-2">Book {land.title}</h1>
-      <p className="text-slate-500 mb-8">{land.location?.address}, {land.location?.city}</p>
+      <div className="ps-book-card">
+        <div className={`ps-avail ${avail ? (avail.available ? 'ok' : 'no') : ''}`}>
+          {checking ? 'Checking live availability…' : avail ? (avail.available ? `✅ ${avail.availableSpots} spots available for this slot` : `❌ Only ${avail.availableSpots} left — reduce vehicles or change time`) : 'Pick dates to check live availability'}
+        </div>
 
-      <div className="bg-white rounded-xl p-6 shadow-sm space-y-6">
-        {/* Date Selection */}
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="ps-label">Start</label><input type="datetime-local" value={form.startDate} min={new Date().toISOString().slice(0, 16)} onChange={(e) => setForm({ ...form, startDate: e.target.value })} className="ps-input" /></div>
+          <div><label className="ps-label">End</label><input type="datetime-local" value={form.endDate} min={form.startDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className="ps-input" /></div>
+        </div>
+
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            <Calendar className="w-4 h-4 inline mr-1" /> Event Dates
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-slate-500">Start Date & Time</label>
-              <input
-                type="datetime-local"
-                name="startDate"
-                value={form.startDate}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border rounded-lg mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-slate-500">End Date & Time</label>
-              <input
-                type="datetime-local"
-                name="endDate"
-                value={form.endDate}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border rounded-lg mt-1"
-              />
-            </div>
+          <label className="ps-label">Vehicle type</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[{ v: 'four_wheeler', l: 'Car', i: <Car className="w-5 h-5" />, m: land.fourWheelerSpots }, { v: 'two_wheeler', l: 'Bike', i: <Bike className="w-5 h-5" />, m: land.twoWheelerSpots }, { v: 'mixed', l: 'Mixed', i: <Car className="w-5 h-5" />, m: land.totalSpots }].map((o) => (
+            <button key={o.v} onClick={() => setForm({ ...form, vehicleType: o.v, vehicleCount: 1 })} className={`ps-vehicle ${form.vehicleType === o.v ? 'on' : ''}`}>
+              <div className="flex justify-center">{o.i}</div><div className="text-sm font-semibold">{o.l}</div><div className="text-[11px] text-slate-500">max {o.m}</div>
+            </button>))}
           </div>
         </div>
 
-        {/* Vehicle Selection */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Vehicle Type</label>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { value: 'four_wheeler', label: 'Four Wheeler', icon: <Car className="w-5 h-5" />, max: maxFourWheelers },
-              { value: 'two_wheeler', label: 'Two Wheeler', icon: <Bike className="w-5 h-5" />, max: maxTwoWheelers },
-              { value: 'mixed', label: 'Mixed', icon: <Car className="w-5 h-5" />, max: maxFourWheelers + maxTwoWheelers },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, vehicleType: opt.value, vehicleCount: 1 })}
-                className={`p-4 rounded-lg border-2 text-center transition ${
-                  form.vehicleType === opt.value
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="flex justify-center mb-2">{opt.icon}</div>
-                <div className="font-medium text-sm">{opt.label}</div>
-                <div className="text-xs text-slate-500">Max: {opt.max}</div>
-              </button>
-            ))}
-          </div>
-        </div>
+        <div><label className="ps-label">Vehicles ({max} max)</label><input type="number" min="1" max={max} value={form.vehicleCount} onChange={(e) => setForm({ ...form, vehicleCount: e.target.value })} className="ps-input text-lg" /></div>
 
-        {/* Vehicle Count */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Number of Vehicles</label>
-          <input
-            type="number"
-            name="vehicleCount"
-            value={form.vehicleCount}
-            onChange={handleChange}
-            min="1"
-            max={form.vehicleType === 'two_wheeler' ? maxTwoWheelers : form.vehicleType === 'four_wheeler' ? maxFourWheelers : maxFourWheelers + maxTwoWheelers}
-            className="w-full px-4 py-3 border rounded-lg text-lg"
-          />
-        </div>
-
-        {/* Pricing Preview */}
         {pricing && (
-          <div className="bg-blue-50 rounded-xl p-4 space-y-2">
-            <h3 className="font-semibold">Price Breakdown</h3>
-            <div className="flex justify-between text-sm">
-              <span>Base Price</span>
-              <span>₹{pricing.basePrice}/hr</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Duration</span>
-              <span>{pricing.durationHours} hours</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Vehicle Count</span>
-              <span>{form.vehicleCount} {form.vehicleType === 'two_wheeler' ? 'two-wheelers' : 'four-wheelers'}</span>
-            </div>
-            <div className="border-t pt-2 flex justify-between font-bold text-lg">
-              <span>Total</span>
-              <span className="text-blue-600">₹{pricing.finalPrice}</span>
-            </div>
+          <div className="ps-pricebox">
+            <div className="row"><span>Rate</span><span>₹{pricing.basePrice ?? land.pricePerHour}/hr {pricing.multiplier > 1 && `(×${pricing.multiplier} peak)`}</span></div>
+            <div className="row"><span>Duration</span><span>{pricing.hours ?? pricing.durationHours} hrs × {form.vehicleCount}</span></div>
+            <div className="total"><span>Total</span><span>₹{pricing.finalPrice ?? pricing.totalAmount}</span></div>
           </div>
         )}
 
-        {/* Capacity Warning */}
-        {form.vehicleCount > (form.vehicleType === 'two_wheeler' ? maxTwoWheelers : form.vehicleType === 'four_wheeler' ? maxFourWheelers : maxFourWheelers + maxTwoWheelers) && (
-          <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
-            Exceeds available capacity! Max: {form.vehicleType === 'two_wheeler' ? maxTwoWheelers : form.vehicleType === 'four_wheeler' ? maxFourWheelers : maxFourWheelers + maxTwoWheelers}
-          </div>
-        )}
-
-        <button
-          onClick={handleBook}
-          disabled={loading || !form.startDate || !form.endDate}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          <CreditCard className="w-5 h-5" />
-          {loading ? 'Processing...' : `Pay ₹${pricing?.finalPrice || '---'}`}
-        </button>
-
-        <p className="text-xs text-slate-400 text-center">
-          Secure payment via Razorpay — UPI, Cards, Net Banking supported
-        </p>
+        <button onClick={handleBook} disabled={loading || (avail && !avail.available)} className="ps-pay"><CreditCard className="w-5 h-5" /> {loading ? 'Processing…' : `Pay ₹${pricing?.finalPrice ?? pricing?.totalAmount ?? '—'} & Book`}</button>
+        <p className="ps-secure"><ShieldCheck className="w-3 h-3" /> UPI • Cards • NetBanking • 100% refund if land is fake <Calendar className="w-3 h-3" /></p>
       </div>
     </div>
   );
 }
+

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Car, PlusCircle, Check, X, Clock, Eye } from 'lucide-react';
 import api from '../services/api';
+import { imageUrl } from '../utils/geo';
 import toast from 'react-hot-toast';
 
 export default function MyLands() {
@@ -73,7 +74,7 @@ export default function MyLands() {
                 <div className="flex gap-4">
                   <div className="w-20 h-20 bg-slate-200 rounded-lg flex-shrink-0 overflow-hidden">
                     {land.images?.[0] ? (
-                      <img src={land.images[0]} alt="" className="w-full h-full object-cover" />
+                      <img src={imageUrl(land.images[0])} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="flex items-center justify-center h-full text-slate-400">
                         <Car className="w-6 h-6" />
@@ -104,7 +105,9 @@ export default function MyLands() {
                   <Eye className="w-3 h-3" /> View
                 </Link>
                 {land.status === 'approved' && (
-                  <span className="text-sm text-green-600">Live</span>
+                  <span className="text-sm text-green-700 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> Live on map
+                  </span>
                 )}
                 {land.status === 'rejected' && (
                   <span className="text-sm text-red-600">Rejected — please edit and resubmit</span>
@@ -123,3 +126,4 @@ export default function MyLands() {
     </div>
   );
 }
+

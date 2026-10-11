@@ -5,8 +5,16 @@ const jwt = require('jsonwebtoken');
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true, minlength: 6, select: false },
-  phone: { type: String, required: true },
+  password: { type: String, required: true, minlength: 8, select: false },
+  phone: {
+    type: String, required: true, trim: true,
+    validate: {
+      validator: function (v) {
+        return /^[+]?[0-9\s-]{10,15}$/.test(v);
+      },
+      message: 'Please provide a valid phone number',
+    },
+  },
   role: { type: String, enum: ['owner', 'customer', 'admin'], default: 'customer' },
   avatar: { type: String, default: '' },
   isVerified: { type: Boolean, default: false },
@@ -24,7 +32,7 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 userSchema.methods.generateToken = function () {
   return jwt.sign({ id: this._id, role: this.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+    expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 };
 

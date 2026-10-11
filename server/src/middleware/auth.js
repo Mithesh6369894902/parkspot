@@ -22,4 +22,21 @@ const authorize = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, authorize };
+// Optional auth: attach user if valid token present, else continue as public.
+// Used for public detail pages that mask PII for guests but show more to owner/admin.
+const optionalAuth = async (req, _res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (!token) return next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = await User.findById(decoded.id);
+    return next();
+  } catch (error) {
+    return next();
+  }
+};
+
+module.exports = { protect, authorize, optionalAuth };

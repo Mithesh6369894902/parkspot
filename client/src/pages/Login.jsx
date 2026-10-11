@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Logo from '../components/common/Logo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -29,9 +30,12 @@ export default function Login() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-center mb-2">Welcome Back</h1>
-          <p className="text-slate-500 text-center mb-6">Login to your ParkSpot account</p>
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10">
+          <div className="flex justify-center mb-6">
+            <Logo size="lg" showTagline={true} />
+          </div>
+          <h1 className="text-2xl font-black text-center mb-1 text-slate-900 font-heading">Welcome Back</h1>
+          <p className="text-slate-500 text-sm text-center mb-8">Access your ParkSpot reservations & lands</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -87,3 +91,4 @@ export default function Login() {
     </div>
   );
 }
+

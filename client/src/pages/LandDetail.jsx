@@ -5,6 +5,7 @@ import { MapPin, Car, Star, Clock, Shield, ArrowLeft, Calendar } from 'lucide-re
 import { useAuth } from '../context/AuthContext';
 import StarRating from '../components/common/StarRating';
 import api from '../services/api';
+import { imageUrl } from '../utils/geo';
 import toast from 'react-hot-toast';
 
 export default function LandDetail() {
@@ -54,7 +55,7 @@ export default function LandDetail() {
             {land.images?.length > 0 ? (
               land.images.slice(0, 4).map((img, i) => (
                 <div key={i} className="bg-slate-200 overflow-hidden">
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={imageUrl(img)} alt="" className="w-full h-full object-cover" />
                 </div>
               ))
             ) : (
@@ -188,7 +189,9 @@ export default function LandDetail() {
             {/* Owner info */}
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm text-slate-500">Listed by</p>
-              <p className="font-medium">{land.owner?.name}</p>
+              <p className="font-medium">{land.owner?.name} {land.verificationDetails?.verificationTier !== 'unverified' && <span className="text-green-600 text-xs font-bold">✔ Verified</span>}</p>
+              {land.owner?.phoneMasked && <p className="text-xs text-slate-400">📞 {land.owner.phoneMasked} (revealed after booking)</p>}
+              <a className="text-xs text-blue-600 font-semibold" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${land.location.coordinates[1]},${land.location.coordinates[0]}`}>Get Directions →</a>
             </div>
           </div>
         </div>
@@ -196,3 +199,4 @@ export default function LandDetail() {
     </div>
   );
 }
+

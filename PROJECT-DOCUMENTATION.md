@@ -100,11 +100,14 @@ ParkSpot is a comprehensive mobile-first platform that digitizes the temporary p
 - Dynamic pricing with transparent breakdown (base rate, peak surcharge, weekend premium)
 - Secure online payment via Razorpay (UPI, GPay, Paytm, Cards, Net Banking)
 - QR code generation for check-in
-- Booking management with cancellation support
+- Time-tiered booking cancellation & automated refund processing (100%, 75%, 50%)
+- Instant 100% Refund Guarantee & Reporting for Fake or Inaccessible Lands
+- In-app Customer Support ticket system with priority escalation
 - Rating and review system for quality assurance
 
 **For Land Owners:**
 - Simple land registration with map boundary drawing
+- Multi-tier Land & Identity Verification workflow (Document upload, live geo-photo, verification tiers)
 - Auto-calculation of parking capacity from land area
 - Dynamic pricing rules (peak hours, weekends, events)
 - Real-time booking notifications
@@ -112,9 +115,9 @@ ParkSpot is a comprehensive mobile-first platform that digitizes the temporary p
 - Revenue tracking
 
 **For Administrators:**
-- Land verification and approval workflow
-- Dispute resolution system
-- User management
+- Land verification and multi-tier approval workflow ('unverified', 'doc_verified', 'physically_verified')
+- Customer support ticket & dispute resolution system
+- User management and role-based permissions
 - Revenue analytics and platform statistics
 
 ### 5.3 System Architecture
@@ -421,6 +424,6 @@ The proposed system demonstrates significant improvements over existing manual a
 
 ---
 
-*Prepared by: Mithesh D*
+*Prepared by: Mithesh D (mithesh1892@gmail.com)*
 *Date: July 2026*
 *Project: ParkSpot - Real-Time Car Parking Land Rental Booking Portal*

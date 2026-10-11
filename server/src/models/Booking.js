@@ -14,6 +14,12 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled'], default: 'pending' },
   qrCode: { type: String, default: '' },
   cancellationReason: { type: String, default: '' },
+  cancelledAt: { type: Date },
+  refundAmount: { type: Number, default: 0 },
+  refundPercentage: { type: Number, default: 0 },
+  refundStatus: { type: String, enum: ['none', 'pending', 'processed', 'failed'], default: 'none' },
+  refundPolicyApplied: { type: String, default: '' },
+  isFakeLandClaim: { type: Boolean, default: false },
 }, { timestamps: true });
 
 bookingSchema.index({ customer: 1, status: 1 });
